@@ -3,12 +3,8 @@
 
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Event Check-in</title>
-
-    <!-- QR scanner library -->
-    <script src="https://unpkg.com/html5-qrcode@2.3.10/html5-qrcode.min.js"></script>
-
     <style>
         :root {
             --pad: 14px;
@@ -16,45 +12,35 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
             margin: 0;
             background: #f6f7f9;
-            color: #111;
-        }
-
-        header {
-            padding: var(--pad);
-            background: #fff;
-            position: sticky;
-            top: 0;
-            box-shadow: 0 1px 6px rgba(0, 0, 0, .06);
-            z-index: 10;
-        }
-
-        header h1 {
-            margin: 0;
-            font-size: 16px;
         }
 
         .wrap {
-            padding: var(--pad);
             max-width: 640px;
             margin: 0 auto;
+            padding: var(--pad);
         }
 
         .card {
             background: #fff;
             border-radius: var(--radius);
-            padding: var(--pad);
-            box-shadow: 0 1px 10px rgba(0, 0, 0, .06);
+            padding: 14px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, .06);
             margin-bottom: 12px;
+        }
+
+        h1 {
+            font-size: 18px;
+            margin: 6px 0 12px;
         }
 
         label {
             display: block;
             font-size: 12px;
-            opacity: .8;
-            margin-bottom: 6px;
+            color: #555;
+            margin: 8px 0 4px;
         }
 
         input,
@@ -64,7 +50,7 @@
             font-size: 16px;
             padding: 12px;
             border-radius: 12px;
-            border: 1px solid #d8dbe2;
+            border: 1px solid #d6d8dd;
             box-sizing: border-box;
         }
 
@@ -75,17 +61,13 @@
         }
 
         .btn {
-            padding: 13px 12px;
-        }
-
-        .btn-primary {
-            background: #111;
+            background: #111827;
             color: #fff;
         }
 
-        .btn-ghost {
-            background: #eef0f5;
-            color: #111;
+        .btn2 {
+            background: #e5e7eb;
+            color: #111827;
         }
 
         .row {
@@ -97,482 +79,577 @@
             flex: 1;
         }
 
-        .meta {
+        .badge {
+            display: inline-block;
             font-size: 12px;
-            opacity: .75;
-            line-height: 1.4;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: #eef2ff;
+            color: #3730a3;
         }
 
-        #reader {
-            width: 100%;
-            border-radius: var(--radius);
-            overflow: hidden;
-        }
-
-        .result {
-            padding: 14px;
-            border-radius: var(--radius);
-            font-weight: 800;
-            font-size: 18px;
+        .status {
             text-align: center;
+            padding: 18px 12px;
+            border-radius: 16px;
+            font-weight: 800;
+            font-size: 20px;
             margin-top: 10px;
         }
 
         .ok {
-            background: #e8f7ee;
+            background: #eaf7ef;
+            color: #065f46;
         }
 
         .dup {
-            background: #fff4e5;
+            background: #fff7ed;
+            color: #9a3412;
         }
 
         .err {
-            background: #fdecec;
+            background: #fef2f2;
+            color: #991b1b;
         }
 
-        .muted {
-            opacity: .75;
-            font-weight: 600;
+        .meta {
             font-size: 13px;
+            color: #374151;
+            line-height: 1.6;
+            word-break: break-all;
         }
 
-        .big {
-            font-size: 26px;
-            letter-spacing: .02em;
+        .small {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
         }
 
         .pill {
-            display: inline-block;
+            background: #f3f4f6;
             padding: 6px 10px;
             border-radius: 999px;
-            background: #eef0f5;
             font-size: 12px;
-        }
-
-        .history {
-            font-size: 13px;
-        }
-
-        .history li {
-            margin: 6px 0;
+            color: #111827;
         }
 
         .hidden {
             display: none;
         }
+
+        .mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
     </style>
 </head>
 
 <body>
-    <header>
-        <h1>イベント受付（QR）</h1>
-    </header>
-
     <div class="wrap">
-
-        <div class="card" id="setupCard">
-            <div class="meta">
-                <span class="pill" id="devicePill">device: -</span>
-                <span class="pill" id="pendingPill">未送信: 0</span>
-            </div>
-            <div style="height:10px"></div>
-
-            <label>オペレーターコード（受付3名用）</label>
-            <input id="operatorCode" placeholder="例：OP-482913" inputmode="text" autocomplete="off" />
-
-            <div style="height:10px"></div>
-            <label>イベントID</label>
-            <input id="eventId" placeholder="例：PLT2026_DAY1" inputmode="text" autocomplete="off" />
-
-            <div style="height:12px"></div>
-            <button class="btn btn-primary" id="startBtn">スキャン開始</button>
-
-            <div style="height:10px"></div>
-            <button class="btn btn-ghost" id="retryPendingBtn">未送信を再送</button>
-
-            <div style="height:10px"></div>
-            <div class="meta" id="setupHint"></div>
-        </div>
-
-        <div class="card hidden" id="scanCard">
-            <div class="meta">
-                <div>担当：<b id="operatorName">-</b></div>
-                <div>イベント：<b id="eventName">-</b></div>
-            </div>
-
-            <div style="height:10px"></div>
-            <div id="reader"></div>
-
-            <div id="resultBox" class="result ok hidden"></div>
-            <div class="muted" id="lastRaw" style="margin-top:8px;"></div>
-
-            <div style="height:12px"></div>
-            <div class="row">
-                <button class="btn btn-ghost" id="stopBtn">停止</button>
-                <button class="btn btn-ghost" id="backBtn">戻る</button>
-            </div>
-        </div>
-
         <div class="card">
-            <div class="meta"><b>直近履歴（端末内）</b></div>
-            <ul class="history" id="history"></ul>
+            <div class="topbar">
+                <h1>受付アプリ</h1>
+                <div class="pill">未送信: <span id="pendingCount">0</span></div>
+            </div>
+            <div class="small">
+                ・イベントIDはQRから取得（入力不要）<br />
+                ・オペレータコードは端末ごとに1回だけ設定（例: A1 / A2 / B1）
+            </div>
         </div>
 
+        <!-- Settings -->
+        <div class="card" id="settingsCard">
+            <div class="row">
+                <div>
+                    <label>オペレータコード（短く）</label>
+                    <input id="operatorCode" placeholder="例：A1" inputmode="text" autocomplete="off" />
+                    <div class="small">端末ごとに固定。最初に1回だけ入れればOK。</div>
+                </div>
+                <div>
+                    <label>APIキー（任意：設定している場合）</label>
+                    <input id="apiKey" placeholder="（空でもOK）" inputmode="text" autocomplete="off" />
+                    <div class="small">GAS側でチェックしている場合のみ。</div>
+                </div>
+            </div>
+
+            <label>送信先（GAS WebアプリURL）</label>
+            <input id="endpoint" placeholder="https://script.google.com/macros/s/xxxxx/exec" inputmode="url"
+                autocomplete="off" />
+            <div class="small">※ doPost を公開したURL（/exec）</div>
+
+            <div style="height:10px"></div>
+            <div class="row">
+                <button class="btn" id="saveSettingsBtn">設定を保存してスキャン開始</button>
+                <button class="btn2" id="clearSettingsBtn">設定クリア</button>
+            </div>
+        </div>
+
+        <!-- Scanner -->
+        <div class="card hidden" id="scanCard">
+            <div class="topbar">
+                <div>
+                    <span class="badge">SCAN</span>
+                    <div class="small">オペレータ: <span class="mono" id="operatorLabel"></span></div>
+                </div>
+                <button class="btn2" id="openSettingsBtn" style="width:auto; padding:10px 12px;">設定</button>
+            </div>
+
+            <div id="reader" style="width:100%;"></div>
+
+            <div id="statusBox" class="status hidden"></div>
+            <div class="meta" id="metaBox"></div>
+
+            <div style="height:10px"></div>
+            <div class="row">
+                <button class="btn2" id="retryPendingBtn">未送信を再送</button>
+                <button class="btn2" id="stopBtn">停止</button>
+            </div>
+        </div>
+
+        <div class="card hidden" id="debugCard">
+            <div class="small">デバッグ</div>
+            <div class="mono small" id="debugLog"></div>
+        </div>
     </div>
 
+    <!-- QR Scanner library -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.10/minified/html5-qrcode.min.js"></script>
+
     <script>
-        /** ===========================
-         * 設定（ここだけ必ず編集）
-         * =========================== */
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxgsHcf7_twzz9lHBZA35ncVLpfHAs7gVpwgE99wdly6JjvS870yO5L_5mwT3nDWP1l/exec"; // 例: https://script.google.com/macros/s/XXXX/exec
-        const API_KEY = "plt2026_9fK3dA2xQmL8";
-
-        /** 受付3名分：払い出しコード */
-        const OPERATORS = [
-            { code: "OP-482913", name: "受付1" },
-            { code: "OP-735204", name: "受付2" },
-            { code: "OP-906571", name: "受付3" },
-        ];
-
-        /** ===========================
-         * 永続ストレージキー
-         * =========================== */
+        // -----------------------------
+        // Storage keys
+        // -----------------------------
         const LS = {
-            deviceId: "checkin_device_id",
             operatorCode: "checkin_operator_code",
-            eventId: "checkin_event_id",
-            pending: "checkin_pending_queue",
-            history: "checkin_history"
+            apiKey: "checkin_api_key",
+            endpoint: "checkin_endpoint",
+            deviceId: "checkin_device_id",
+            pending: "checkin_pending_queue"
         };
+
+        // -----------------------------
+        // UI elements
+        // -----------------------------
+        const settingsCard = document.getElementById("settingsCard");
+        const scanCard = document.getElementById("scanCard");
+        const operatorCodeInput = document.getElementById("operatorCode");
+        const apiKeyInput = document.getElementById("apiKey");
+        const endpointInput = document.getElementById("endpoint");
+        const operatorLabel = document.getElementById("operatorLabel");
+        const pendingCountEl = document.getElementById("pendingCount");
+        const statusBox = document.getElementById("statusBox");
+        const metaBox = document.getElementById("metaBox");
+        const debugLog = document.getElementById("debugLog");
+        const debugCard = document.getElementById("debugCard");
+
+        const saveSettingsBtn = document.getElementById("saveSettingsBtn");
+        const clearSettingsBtn = document.getElementById("clearSettingsBtn");
+        const openSettingsBtn = document.getElementById("openSettingsBtn");
+        const retryPendingBtn = document.getElementById("retryPendingBtn");
+        const stopBtn = document.getElementById("stopBtn");
+
+        // -----------------------------
+        // Helpers
+        // -----------------------------
+        function log(msg) {
+            // debugCard.classList.remove("hidden");
+            const ts = new Date().toISOString();
+            debugLog.innerText = `[${ts}] ${msg}\n` + debugLog.innerText;
+        }
+
+        function vibrate(ms = 40) {
+            try { if (navigator.vibrate) navigator.vibrate(ms); } catch { }
+        }
+
+        function beep() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = "sine";
+                osc.frequency.value = 880;
+                gain.gain.value = 0.03;
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.start();
+                setTimeout(() => { osc.stop(); ctx.close(); }, 120);
+            } catch { }
+        }
 
         function getOrCreateDeviceId() {
             let id = localStorage.getItem(LS.deviceId);
             if (!id) {
-                id = "dev-" + Math.random().toString(36).slice(2, 10) + "-" + Date.now().toString(36);
+                id = "dev_" + crypto.getRandomValues(new Uint32Array(4)).join("");
                 localStorage.setItem(LS.deviceId, id);
             }
             return id;
         }
 
-        function loadJson(key, fallback) {
+        function loadPending() {
             try {
-                const v = localStorage.getItem(key);
-                return v ? JSON.parse(v) : fallback;
+                const raw = localStorage.getItem(LS.pending);
+                return raw ? JSON.parse(raw) : [];
             } catch {
-                return fallback;
+                return [];
             }
         }
-        function saveJson(key, value) {
-            localStorage.setItem(key, JSON.stringify(value));
+
+        function savePending(queue) {
+            localStorage.setItem(LS.pending, JSON.stringify(queue));
+            pendingCountEl.textContent = String(queue.length);
         }
 
-        function setHint(msg) {
-            document.getElementById("setupHint").textContent = msg || "";
+        function addPending(item) {
+            const q = loadPending();
+            q.push(item);
+            savePending(q);
         }
 
-        function findOperatorByCode(code) {
-            return OPERATORS.find(o => o.code.trim() === code.trim());
+        function shiftPending() {
+            const q = loadPending();
+            const item = q.shift();
+            savePending(q);
+            return item;
         }
 
-        function beepAndVibrate(ok = true) {
-            // vibrate (mobile)
-            try { if (navigator.vibrate) navigator.vibrate(ok ? [60] : [60, 60, 60]); } catch { }
-            // simple beep (may require user interaction already)
-            try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const o = ctx.createOscillator();
-                const g = ctx.createGain();
-                o.connect(g); g.connect(ctx.destination);
-                o.type = "sine";
-                o.frequency.value = ok ? 880 : 220;
-                g.gain.setValueAtTime(0.06, ctx.currentTime);
-                o.start();
-                o.stop(ctx.currentTime + 0.08);
-            } catch { }
-        }
+        function setStatus(kind, title, detailObj) {
+            statusBox.classList.remove("hidden", "ok", "dup", "err");
+            statusBox.classList.add(kind);
+            statusBox.textContent = title;
 
-        function showResult(kind, title, detail) {
-            const box = document.getElementById("resultBox");
-            box.classList.remove("hidden", "ok", "dup", "err");
-            box.classList.add(kind === "OK" ? "ok" : kind === "DUPLICATE" ? "dup" : "err");
-            box.innerHTML = `<div class="big">${title}</div><div style="margin-top:6px;font-size:13px;opacity:.85">${detail || ""}</div>`;
-        }
-
-        function addHistory(entry) {
-            const list = loadJson(LS.history, []);
-            list.unshift({ ...entry, at: new Date().toISOString() });
-            const trimmed = list.slice(0, 20);
-            saveJson(LS.history, trimmed);
-            renderHistory();
-        }
-        function renderHistory() {
-            const ul = document.getElementById("history");
-            const list = loadJson(LS.history, []);
-            ul.innerHTML = list.map(x => {
-                const t = new Date(x.at);
-                const time = t.toLocaleString("ja-JP");
-                return `<li>${time} — <b>${x.status}</b> — pid: ${escapeHtml(x.pid || "-")} — ${escapeHtml(x.msg || "")}</li>`;
-            }).join("");
-        }
-        function escapeHtml(s) {
-            return String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
-        }
-
-        /** ===========================
-         * pending queue (offline tolerance)
-         * =========================== */
-        function getPending() { return loadJson(LS.pending, []); }
-        function setPending(q) { saveJson(LS.pending, q); updatePendingPill(); }
-        function enqueuePending(payload) {
-            const q = getPending();
-            q.push({ payload, enqueuedAt: Date.now() });
-            setPending(q);
-        }
-        function updatePendingPill() {
-            const q = getPending();
-            document.getElementById("pendingPill").textContent = `未送信: ${q.length}`;
-        }
-
-        async function flushPending() {
-            const q = getPending();
-            if (!q.length) return { flushed: 0, failed: 0 };
-
-            let flushed = 0;
-            let failed = 0;
-            const remaining = [];
-
-            for (const item of q) {
-                try {
-                    const res = await postCheckin(item.payload);
-                    if (res && res.success) {
-                        flushed++;
-                    } else {
-                        // not success -> keep? usually yes
-                        remaining.push(item);
-                        failed++;
+            const lines = [];
+            if (detailObj) {
+                for (const [k, v] of Object.entries(detailObj)) {
+                    if (v !== undefined && v !== null && String(v).length) {
+                        lines.push(`${k}: ${v}`);
                     }
-                } catch {
-                    remaining.push(item);
-                    failed++;
                 }
             }
-            setPending(remaining);
-            return { flushed, failed };
+            metaBox.innerHTML = lines.length ? `<div class="meta">${lines.join("<br/>")}</div>` : "";
         }
 
-        /** ===========================
-         * QR parsing (expects query-like string)
-         * pid=U001&cat=...&team=...&mentor=...&event=PLT2026_DAY1
-         * =========================== */
-        function parseQrData(qrData) {
-            const out = {};
-            const parts = String(qrData || "").split("&");
-            for (const p of parts) {
-                const [k, v] = p.split("=");
-                if (!k) continue;
-                out[k] = decodeURIComponent(v || "");
-            }
-            return out;
+        function clearStatusSoon(ms = 900) {
+            setTimeout(() => {
+                statusBox.classList.add("hidden");
+                metaBox.innerHTML = "";
+            }, ms);
         }
 
-        /** ===========================
-         * Network: POST checkin to GAS
-         * =========================== */
-        async function postCheckin(payload) {
-            const res = await fetch(WEB_APP_URL, {
+        // Parse QR payload: expects querystring-like.
+        // Supports:
+        //  - "event=XXX&pid=U001&cat=参加者&team=A&mentor=佐藤"
+        //  - full URL containing ?event=...&pid=...
+        function parseQr(text) {
+            let q = text;
+            try {
+                if (text.includes("?")) q = text.split("?")[1];
+            } catch { }
+            q = q.replace(/^#/, "");
+            const params = new URLSearchParams(q);
+            const event_id = params.get("event") || params.get("event_id") || "";
+            const participant_id = params.get("pid") || params.get("participant_id") || "";
+            const category = params.get("cat") || params.get("category") || "";
+            const team = params.get("team") || "";
+            const mentor = params.get("mentor") || "";
+            return { event_id, participant_id, category, team, mentor, raw: text };
+        }
+
+        function validateOperatorCode(code) {
+            // ultra-simple: 1-6 chars, alnum only recommended
+            const c = (code || "").trim();
+            if (!c) return { ok: false, reason: "オペレータコードを入力してください（例：A1）" };
+            if (c.length > 8) return { ok: false, reason: "オペレータコードが長すぎます（8文字以内）" };
+            return { ok: true, value: c };
+        }
+
+        // -----------------------------
+        // Networking
+        // -----------------------------
+        async function postCheckin(payload, endpoint, apiKey) {
+            const headers = { "Content-Type": "application/json" };
+            if (apiKey && apiKey.trim()) headers["X-API-KEY"] = apiKey.trim();
+
+            const res = await fetch(endpoint, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers,
                 body: JSON.stringify(payload),
             });
-            // GAS sometimes returns 200 for errors, we parse JSON anyway
-            const text = await res.text();
-            try {
-                return JSON.parse(text);
-            } catch {
-                return { success: false, status: "ERROR", message: "Invalid JSON response", raw: text };
+
+            const contentType = res.headers.get("content-type") || "";
+            let data = null;
+            if (contentType.includes("application/json")) {
+                data = await res.json();
+            } else {
+                const t = await res.text();
+                try { data = JSON.parse(t); } catch { data = { raw: t }; }
             }
+
+            if (!res.ok) {
+                const errMsg = (data && (data.error || data.message)) ? (data.error || data.message) : `HTTP ${res.status}`;
+                throw new Error(errMsg);
+            }
+            return data;
         }
 
-        /** ===========================
-         * UI + Scanner
-         * =========================== */
-        const deviceId = getOrCreateDeviceId();
-        document.getElementById("devicePill").textContent = `device: ${deviceId}`;
-        updatePendingPill();
-        renderHistory();
+        async function flushPending(endpoint, apiKey) {
+            const q = loadPending();
+            if (!q.length) return { sent: 0 };
 
-        // restore inputs
-        document.getElementById("operatorCode").value = localStorage.getItem(LS.operatorCode) || "";
-        document.getElementById("eventId").value = localStorage.getItem(LS.eventId) || "";
-
-        let html5Qr = null;
-        let scanning = false;
-        let lastScanAt = 0;
-        let lastPid = null;
-
-        function gotoScan(operatorName, eventId) {
-            document.getElementById("setupCard").classList.add("hidden");
-            document.getElementById("scanCard").classList.remove("hidden");
-            document.getElementById("operatorName").textContent = operatorName;
-            document.getElementById("eventName").textContent = eventId;
-        }
-
-        function gotoSetup() {
-            document.getElementById("scanCard").classList.add("hidden");
-            document.getElementById("setupCard").classList.remove("hidden");
-        }
-
-        async function startScanner(operatorName, eventId) {
-            if (scanning) return;
-            scanning = true;
-
-            document.getElementById("resultBox").classList.add("hidden");
-            document.getElementById("lastRaw").textContent = "";
-
-            if (!html5Qr) html5Qr = new Html5Qrcode("reader");
-
-            const config = { fps: 10, qrbox: { width: 260, height: 260 } };
-
-            // Prefer back camera
-            const cameraConfig = { facingMode: "environment" };
-
-            await html5Qr.start(
-                cameraConfig,
-                config,
-                async (decodedText /*, decodedResult */) => {
-                    // throttle duplicate reads by time + same pid
-                    const now = Date.now();
-                    if (now - lastScanAt < 1200) return; // 1.2s throttle
-                    lastScanAt = now;
-
-                    document.getElementById("lastRaw").textContent = `RAW: ${decodedText}`;
-
-                    // If QR contains pid/event, use them.
-                    // If QR only contains pid, we override event with selected eventId
-                    const p = parseQrData(decodedText);
-                    const pid = p.pid || decodedText; // fallback: entire text is pid
-                    const eventFromQr = p.event || eventId;
-
-                    // same pid quick duplicate guard (client-side)
-                    if (pid && lastPid === pid && (now - lastScanAt) < 1500) return;
-                    lastPid = pid;
-
-                    const qrDataToSend = p.pid ? decodedText : `pid=${encodeURIComponent(pid)}&event=${encodeURIComponent(eventFromQr)}`;
-
-                    const payload = {
-                        apiKey: API_KEY,
-                        qrData: qrDataToSend,
-                        operator: operatorName,
-                        deviceId
-                    };
-
-                    try {
-                        const res = await postCheckin(payload);
-
-                        if (res && res.success) {
-                            beepAndVibrate(true);
-                            showResult("OK", "受付完了", `pid: ${pid}`);
-                            addHistory({ status: "OK", pid, msg: "checked_in" });
-                        } else {
-                            const status = (res && res.status) ? res.status : "ERROR";
-                            if (status === "DUPLICATE") {
-                                beepAndVibrate(false);
-                                showResult("DUPLICATE", "受付済み", `pid: ${pid}`);
-                                addHistory({ status: "DUPLICATE", pid, msg: "already checked_in" });
-                            } else if (status === "NOT_FOUND") {
-                                beepAndVibrate(false);
-                                showResult("NOT_FOUND", "対象なし", `pid: ${pid}`);
-                                addHistory({ status: "NOT_FOUND", pid, msg: "participant not found" });
-                            } else {
-                                beepAndVibrate(false);
-                                showResult("ERROR", "エラー", (res && (res.message || res.raw)) ? String(res.message || res.raw).slice(0, 120) : "unknown");
-                                addHistory({ status: "ERROR", pid, msg: "server error" });
-                            }
-                        }
-                    } catch (err) {
-                        // offline / network error -> enqueue
-                        enqueuePending(payload);
-                        updatePendingPill();
-                        beepAndVibrate(false);
-                        showResult("ERROR", "通信失敗", "未送信キューに保存しました");
-                        addHistory({ status: "OFFLINE", pid, msg: "queued" });
-                    }
-
-                    // auto-hide result after 1s
-                    setTimeout(() => {
-                        const box = document.getElementById("resultBox");
-                        box.classList.add("hidden");
-                    }, 1000);
-                },
-                (errorMessage) => {
-                    // ignore frequent errors
+            let sent = 0;
+            // try sequentially to avoid bursts
+            for (let i = 0; i < 50; i++) {
+                const item = loadPending()[0];
+                if (!item) break;
+                try {
+                    await postCheckin(item, endpoint, apiKey);
+                    shiftPending();
+                    sent++;
+                } catch (e) {
+                    // stop at first failure
+                    log("pending flush failed: " + e.message);
+                    break;
                 }
-            );
+            }
+            return { sent };
+        }
+
+        // -----------------------------
+        // Scanner
+        // -----------------------------
+        let html5QrCode = null;
+        let scanning = false;
+        let lastScan = { key: "", at: 0 };
+
+        async function startScanner() {
+            const operator_code = localStorage.getItem(LS.operatorCode) || "";
+            const endpoint = localStorage.getItem(LS.endpoint) || "";
+            const apiKey = localStorage.getItem(LS.apiKey) || "";
+            const device_id = getOrCreateDeviceId();
+
+            operatorLabel.textContent = operator_code;
+
+            // UI
+            settingsCard.classList.add("hidden");
+            scanCard.classList.remove("hidden");
+
+            pendingCountEl.textContent = String(loadPending().length);
+
+            // Retry pending in background on start (best effort)
+            flushPending(endpoint, apiKey).catch(() => { });
+
+            if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
+
+            const config = {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+                rememberLastUsedCamera: true,
+                // Formats: leave default
+            };
+
+            scanning = true;
+            try {
+                const cameras = await Html5Qrcode.getCameras();
+                if (!cameras || cameras.length === 0) {
+                    setStatus("err", "カメラが見つかりません", { hint: "ブラウザのカメラ許可を確認" });
+                    return;
+                }
+                // prefer back camera (often last)
+                const camId = cameras[cameras.length - 1].id;
+
+                await html5QrCode.start(
+                    { deviceId: { exact: camId } },
+                    config,
+                    async (decodedText) => {
+                        if (!scanning) return;
+
+                        // Debounce duplicates (same raw within 2 sec)
+                        const now = Date.now();
+                        const parsed = parseQr(decodedText);
+                        const key = `${parsed.event_id}|${parsed.participant_id}|${parsed.raw}`;
+                        if (key === lastScan.key && (now - lastScan.at) < 2000) return;
+                        lastScan = { key, at: now };
+
+                        // Basic validation
+                        if (!parsed.event_id || !parsed.participant_id) {
+                            vibrate(120);
+                            setStatus("err", "QR形式エラー", {
+                                required: "event と pid が必要",
+                                raw: decodedText.slice(0, 120) + (decodedText.length > 120 ? "..." : "")
+                            });
+                            clearStatusSoon(1200);
+                            return;
+                        }
+
+                        // Pause scanning during submit to reduce double fires
+                        scanning = false;
+
+                        const payload = {
+                            timestamp_client: new Date().toISOString(),
+                            event_id: parsed.event_id,
+                            participant_id: parsed.participant_id,
+                            category: parsed.category || "",
+                            team: parsed.team || "",
+                            mentor: parsed.mentor || "",
+                            operator_code,
+                            device_id,
+                        };
+
+                        try {
+                            const data = await postCheckin(payload, endpoint, apiKey);
+
+                            // Expected response shape:
+                            // { status: "OK"|"DUPLICATE", message?: "...", ... }
+                            const st = (data && (data.status || data.result)) ? (data.status || data.result) : "OK";
+
+                            if (String(st).toUpperCase() === "DUPLICATE") {
+                                vibrate(90);
+                                setStatus("dup", "受付済み", {
+                                    event: parsed.event_id,
+                                    pid: parsed.participant_id,
+                                    note: data.message || ""
+                                });
+                            } else {
+                                beep(); vibrate(40);
+                                setStatus("ok", "受付完了", {
+                                    event: parsed.event_id,
+                                    pid: parsed.participant_id,
+                                    cat: parsed.category || "",
+                                    team: parsed.team || "",
+                                    mentor: parsed.mentor || ""
+                                });
+                            }
+                        } catch (e) {
+                            // Queue if network error
+                            addPending(payload);
+                            vibrate(140);
+                            setStatus("err", "通信エラー（未送信に保存）", {
+                                event: parsed.event_id,
+                                pid: parsed.participant_id,
+                                error: e.message
+                            });
+                        } finally {
+                            // Resume scanning after short delay
+                            clearStatusSoon(900);
+                            setTimeout(() => { scanning = true; }, 650);
+                        }
+                    },
+                    (err) => {
+                        // ignore scan errors
+                    }
+                );
+            } catch (e) {
+                setStatus("err", "スキャン開始失敗", { error: e.message });
+            }
         }
 
         async function stopScanner() {
-            if (!html5Qr || !scanning) return;
             scanning = false;
-            try { await html5Qr.stop(); } catch { }
-            try { await html5Qr.clear(); } catch { }
+            try {
+                if (html5QrCode && html5QrCode.isScanning) {
+                    await html5QrCode.stop();
+                }
+            } catch { }
         }
 
-        /** ===========================
-         * Events
-         * =========================== */
-        document.getElementById("startBtn").addEventListener("click", async () => {
-            const code = document.getElementById("operatorCode").value.trim();
-            const eventId = document.getElementById("eventId").value.trim();
+        // -----------------------------
+        // Settings + Boot
+        // -----------------------------
+        function showSettings() {
+            scanCard.classList.add("hidden");
+            settingsCard.classList.remove("hidden");
 
-            if (!WEB_APP_URL.includes("script.google.com")) {
-                setHint("WEB_APP_URL が未設定です（index.htmlの先頭を編集してください）");
+            operatorCodeInput.value = localStorage.getItem(LS.operatorCode) || "";
+            apiKeyInput.value = localStorage.getItem(LS.apiKey) || "";
+            endpointInput.value = localStorage.getItem(LS.endpoint) || "";
+            pendingCountEl.textContent = String(loadPending().length);
+        }
+
+        saveSettingsBtn.addEventListener("click", async () => {
+            const op = validateOperatorCode(operatorCodeInput.value);
+            if (!op.ok) {
+                setStatus("err", "設定エラー", { reason: op.reason });
+                // show in settings card by temporarily placing status
+                settingsCard.insertAdjacentElement("beforeend", statusBox);
+                statusBox.classList.remove("hidden");
                 return;
             }
-            if (!API_KEY || API_KEY.includes("REPLACE_")) {
-                setHint("API_KEY が未設定です（index.htmlの先頭を編集してください）");
-                return;
-            }
-            const op = findOperatorByCode(code);
-            if (!op) {
-                setHint("オペレーターコードが正しくありません（払い出しコードを確認してください）");
-                return;
-            }
-            if (!eventId) {
-                setHint("イベントIDを入力してください（例：PLT2026_DAY1）");
+            const endpoint = (endpointInput.value || "").trim();
+            if (!endpoint.startsWith("https://")) {
+                setStatus("err", "設定エラー", { reason: "送信先URL（https://.../exec）を入力してください" });
+                settingsCard.insertAdjacentElement("beforeend", statusBox);
+                statusBox.classList.remove("hidden");
                 return;
             }
 
-            localStorage.setItem(LS.operatorCode, code);
-            localStorage.setItem(LS.eventId, eventId);
-            setHint("");
+            localStorage.setItem(LS.operatorCode, op.value);
+            localStorage.setItem(LS.apiKey, (apiKeyInput.value || "").trim());
+            localStorage.setItem(LS.endpoint, endpoint);
 
-            // try flush pending first (non-blocking)
-            flushPending().catch(() => { });
+            // move statusBox back (if it was attached)
+            statusBox.classList.add("hidden");
+            document.body.appendChild(statusBox);
 
-            gotoScan(op.name, eventId);
-
-            try {
-                await startScanner(op.name, eventId);
-            } catch (e) {
-                setHint("カメラ起動に失敗しました。ブラウザのカメラ許可を確認してください。");
-                gotoSetup();
-            }
-        });
-
-        document.getElementById("stopBtn").addEventListener("click", async () => {
             await stopScanner();
-            showResult("ERROR", "停止中", "スキャンを停止しました");
+            await startScanner();
         });
 
-        document.getElementById("backBtn").addEventListener("click", async () => {
+        clearSettingsBtn.addEventListener("click", async () => {
+            localStorage.removeItem(LS.operatorCode);
+            localStorage.removeItem(LS.apiKey);
+            localStorage.removeItem(LS.endpoint);
+            showSettings();
             await stopScanner();
-            gotoSetup();
         });
 
-        document.getElementById("retryPendingBtn").addEventListener("click", async () => {
-            const r = await flushPending();
-            setHint(`未送信再送：成功 ${r.flushed} / 失敗 ${r.failed}`);
+        openSettingsBtn.addEventListener("click", async () => {
+            showSettings();
+            await stopScanner();
         });
+
+        retryPendingBtn.addEventListener("click", async () => {
+            const endpoint = localStorage.getItem(LS.endpoint) || "";
+            const apiKey = localStorage.getItem(LS.apiKey) || "";
+            if (!endpoint) {
+                setStatus("err", "設定エラー", { reason: "送信先URLが未設定です" });
+                clearStatusSoon(1200);
+                return;
+            }
+            const r = await flushPending(endpoint, apiKey);
+            if (r.sent > 0) {
+                beep(); vibrate(40);
+                setStatus("ok", "再送完了", { sent: r.sent });
+            } else {
+                setStatus("dup", "再送なし", { note: "未送信がないか、通信エラーです" });
+            }
+            clearStatusSoon(1000);
+        });
+
+        stopBtn.addEventListener("click", async () => {
+            await stopScanner();
+            setStatus("dup", "停止しました", { note: "再開するには設定→保存" });
+        });
+
+        // Boot
+        (function init() {
+            // ensure device id
+            getOrCreateDeviceId();
+
+            // show settings if missing
+            const op = localStorage.getItem(LS.operatorCode);
+            const ep = localStorage.getItem(LS.endpoint);
+            if (!op || !ep) {
+                showSettings();
+            } else {
+                // start scanner immediately
+                startScanner();
+            }
+
+            pendingCountEl.textContent = String(loadPending().length);
+        })();
     </script>
 </body>
 

@@ -164,23 +164,11 @@
 
         <!-- Settings -->
         <div class="card" id="settingsCard">
-            <div class="row">
-                <div>
-                    <label>オペレータコード（短く）</label>
-                    <input id="operatorCode" placeholder="例：A1" inputmode="text" autocomplete="off" />
-                    <div class="small">端末ごとに固定。最初に1回だけ入れればOK。</div>
-                </div>
-                <div>
-                    <label>APIキー（任意：設定している場合）</label>
-                    <input id="apiKey" placeholder="（空でもOK）" inputmode="text" autocomplete="off" />
-                    <div class="small">GAS側でチェックしている場合のみ。</div>
-                </div>
+            <div>
+                <label>オペレータコード（短く）</label>
+                <input id="operatorCode" placeholder="例：A1" inputmode="text" autocomplete="off" />
+                <div class="small">端末ごとに固定。最初に1回だけ入れればOK。</div>
             </div>
-
-            <label>送信先（GAS WebアプリURL）</label>
-            <input id="endpoint" placeholder="https://script.google.com/macros/s/xxxxx/exec" inputmode="url"
-                autocomplete="off" />
-            <div class="small">※ doPost を公開したURL（/exec）</div>
 
             <div style="height:10px"></div>
             <div class="row">
@@ -222,12 +210,16 @@
 
     <script>
         // -----------------------------
+        // Configuration (埋め込み設定)
+        // -----------------------------
+        const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbxgsHcf7_twzz9lHBZA35ncVLpfHAs7gVpwgE99wdly6JjvS870yO5L_5mwT3nDWP1l/exec"; // GAS WebアプリURLをここに入力してください（例: https://script.google.com/macros/s/xxxxx/exec）
+        const API_KEY = "plt2026_9fK3dA2xQmL8"; // APIキーをここに入力してください（空欄でもOK）
+
+        // -----------------------------
         // Storage keys
         // -----------------------------
         const LS = {
             operatorCode: "checkin_operator_code",
-            apiKey: "checkin_api_key",
-            endpoint: "checkin_endpoint",
             deviceId: "checkin_device_id",
             pending: "checkin_pending_queue"
         };
@@ -238,8 +230,6 @@
         const settingsCard = document.getElementById("settingsCard");
         const scanCard = document.getElementById("scanCard");
         const operatorCodeInput = document.getElementById("operatorCode");
-        const apiKeyInput = document.getElementById("apiKey");
-        const endpointInput = document.getElementById("endpoint");
         const operatorLabel = document.getElementById("operatorLabel");
         const pendingCountEl = document.getElementById("pendingCount");
         const statusBox = document.getElementById("statusBox");
@@ -257,9 +247,10 @@
         // Helpers
         // -----------------------------
         function log(msg) {
-            // debugCard.classList.remove("hidden");
             const ts = new Date().toISOString();
             debugLog.innerText = `[${ts}] ${msg}\n` + debugLog.innerText;
+            // デバッグカードを表示（必要に応じてコメントアウト）
+            // debugCard.classList.remove("hidden");
         }
 
         function vibrate(ms = 40) {
@@ -424,11 +415,90 @@
         let scanning = false;
         let lastScan = { key: "", at: 0 };
 
+        async function handleQrScan(decodedText, operator_code, endpoint, apiKey, device_id) {
+            // Debounce duplicates (same raw within 2 sec)
+            const now = Date.now();
+            const parsed = parseQr(decodedText);
+            const key = `${parsed.event_id}|${parsed.participant_id}|${parsed.raw}`;
+            if (key === lastScan.key && (now - lastScan.at) < 2000) return;
+            lastScan = { key, at: now };
+
+            // Basic validation
+            if (!parsed.event_id || !parsed.participant_id) {
+                vibrate(120);
+                setStatus("err", "QR形式エラー", {
+                    required: "event と pid が必要",
+                    raw: decodedText.slice(0, 120) + (decodedText.length > 120 ? "..." : "")
+                });
+                clearStatusSoon(1200);
+                return;
+            }
+
+            // Pause scanning during submit to reduce double fires
+            scanning = false;
+
+            const payload = {
+                timestamp_client: new Date().toISOString(),
+                event_id: parsed.event_id,
+                participant_id: parsed.participant_id,
+                category: parsed.category || "",
+                team: parsed.team || "",
+                mentor: parsed.mentor || "",
+                operator_code,
+                device_id,
+            };
+
+            try {
+                const data = await postCheckin(payload, endpoint, apiKey);
+
+                // Expected response shape:
+                // { status: "OK"|"DUPLICATE", message?: "...", ... }
+                const st = (data && (data.status || data.result)) ? (data.status || data.result) : "OK";
+
+                if (String(st).toUpperCase() === "DUPLICATE") {
+                    vibrate(90);
+                    setStatus("dup", "受付済み", {
+                        event: parsed.event_id,
+                        pid: parsed.participant_id,
+                        note: data.message || ""
+                    });
+                } else {
+                    beep(); vibrate(40);
+                    setStatus("ok", "受付完了", {
+                        event: parsed.event_id,
+                        pid: parsed.participant_id,
+                        cat: parsed.category || "",
+                        team: parsed.team || "",
+                        mentor: parsed.mentor || ""
+                    });
+                }
+            } catch (e) {
+                // Queue if network error
+                addPending(payload);
+                vibrate(140);
+                setStatus("err", "通信エラー（未送信に保存）", {
+                    event: parsed.event_id,
+                    pid: parsed.participant_id,
+                    error: e.message
+                });
+            } finally {
+                // Resume scanning after short delay
+                clearStatusSoon(900);
+                setTimeout(() => { scanning = true; }, 650);
+            }
+        }
+
         async function startScanner() {
             const operator_code = localStorage.getItem(LS.operatorCode) || "";
-            const endpoint = localStorage.getItem(LS.endpoint) || "";
-            const apiKey = localStorage.getItem(LS.apiKey) || "";
+            const endpoint = GAS_ENDPOINT;
+            const apiKey = API_KEY;
             const device_id = getOrCreateDeviceId();
+
+            if (!endpoint) {
+                setStatus("err", "設定エラー", { reason: "GAS_ENDPOINTが設定されていません" });
+                showSettings();
+                return;
+            }
 
             operatorLabel.textContent = operator_code;
 
@@ -447,102 +517,87 @@
                 fps: 10,
                 qrbox: { width: 250, height: 250 },
                 rememberLastUsedCamera: true,
+                aspectRatio: 1.0,
                 // Formats: leave default
             };
 
             scanning = true;
             try {
-                const cameras = await Html5Qrcode.getCameras();
+                let cameras = [];
+                try {
+                    cameras = await Html5Qrcode.getCameras();
+                } catch (e) {
+                    log("カメラ取得エラー: " + e.message);
+                    // カメラ取得に失敗した場合、環境カメラを直接指定して試す
+                    try {
+                        log("環境カメラで直接試行");
+                        await html5QrCode.start(
+                            { facingMode: "environment" },
+                            config,
+                            async (decodedText) => {
+                                if (!scanning) return;
+                                await handleQrScan(decodedText, operator_code, endpoint, apiKey, device_id);
+                            },
+                            (err) => { }
+                        );
+                        log("カメラ起動成功（環境カメラ）");
+                        return;
+                    } catch (e2) {
+                        setStatus("err", "カメラ起動失敗", {
+                            error: e2.message,
+                            hint: "ブラウザのカメラ許可を確認してください"
+                        });
+                        scanning = false;
+                        return;
+                    }
+                }
+
                 if (!cameras || cameras.length === 0) {
-                    setStatus("err", "カメラが見つかりません", { hint: "ブラウザのカメラ許可を確認" });
+                    setStatus("err", "カメラが見つかりません", { hint: "ブラウザのカメラ許可を確認してください" });
+                    scanning = false;
                     return;
                 }
-                // prefer back camera (often last)
-                const camId = cameras[cameras.length - 1].id;
+
+                log(`利用可能なカメラ数: ${cameras.length}`);
+
+                // 背面カメラを優先的に選択（環境カメラを探す）
+                let camId = null;
+                for (let i = cameras.length - 1; i >= 0; i--) {
+                    const cam = cameras[i];
+                    const label = (cam.label || "").toLowerCase();
+                    log(`カメラ ${i}: ${label}`);
+                    if (label.includes("back") || label.includes("rear") || label.includes("環境") || label.includes("environment")) {
+                        camId = cam.id;
+                        log(`背面カメラを選択: ${camId}`);
+                        break;
+                    }
+                }
+                // 背面カメラが見つからない場合は最後のカメラを使用
+                if (!camId) {
+                    camId = cameras[cameras.length - 1].id;
+                    log(`最後のカメラを選択: ${camId}`);
+                }
 
                 await html5QrCode.start(
-                    { deviceId: { exact: camId } },
+                    camId,
                     config,
                     async (decodedText) => {
                         if (!scanning) return;
-
-                        // Debounce duplicates (same raw within 2 sec)
-                        const now = Date.now();
-                        const parsed = parseQr(decodedText);
-                        const key = `${parsed.event_id}|${parsed.participant_id}|${parsed.raw}`;
-                        if (key === lastScan.key && (now - lastScan.at) < 2000) return;
-                        lastScan = { key, at: now };
-
-                        // Basic validation
-                        if (!parsed.event_id || !parsed.participant_id) {
-                            vibrate(120);
-                            setStatus("err", "QR形式エラー", {
-                                required: "event と pid が必要",
-                                raw: decodedText.slice(0, 120) + (decodedText.length > 120 ? "..." : "")
-                            });
-                            clearStatusSoon(1200);
-                            return;
-                        }
-
-                        // Pause scanning during submit to reduce double fires
-                        scanning = false;
-
-                        const payload = {
-                            timestamp_client: new Date().toISOString(),
-                            event_id: parsed.event_id,
-                            participant_id: parsed.participant_id,
-                            category: parsed.category || "",
-                            team: parsed.team || "",
-                            mentor: parsed.mentor || "",
-                            operator_code,
-                            device_id,
-                        };
-
-                        try {
-                            const data = await postCheckin(payload, endpoint, apiKey);
-
-                            // Expected response shape:
-                            // { status: "OK"|"DUPLICATE", message?: "...", ... }
-                            const st = (data && (data.status || data.result)) ? (data.status || data.result) : "OK";
-
-                            if (String(st).toUpperCase() === "DUPLICATE") {
-                                vibrate(90);
-                                setStatus("dup", "受付済み", {
-                                    event: parsed.event_id,
-                                    pid: parsed.participant_id,
-                                    note: data.message || ""
-                                });
-                            } else {
-                                beep(); vibrate(40);
-                                setStatus("ok", "受付完了", {
-                                    event: parsed.event_id,
-                                    pid: parsed.participant_id,
-                                    cat: parsed.category || "",
-                                    team: parsed.team || "",
-                                    mentor: parsed.mentor || ""
-                                });
-                            }
-                        } catch (e) {
-                            // Queue if network error
-                            addPending(payload);
-                            vibrate(140);
-                            setStatus("err", "通信エラー（未送信に保存）", {
-                                event: parsed.event_id,
-                                pid: parsed.participant_id,
-                                error: e.message
-                            });
-                        } finally {
-                            // Resume scanning after short delay
-                            clearStatusSoon(900);
-                            setTimeout(() => { scanning = true; }, 650);
-                        }
+                        await handleQrScan(decodedText, operator_code, endpoint, apiKey, device_id);
                     },
                     (err) => {
-                        // ignore scan errors
+                        // スキャンエラーは無視（継続的にスキャンするため）
+                        // log("Scan error: " + err);
                     }
                 );
+                log("カメラ起動成功");
             } catch (e) {
-                setStatus("err", "スキャン開始失敗", { error: e.message });
+                scanning = false;
+                log("スキャン開始失敗: " + e.message);
+                setStatus("err", "スキャン開始失敗", {
+                    error: e.message,
+                    hint: "カメラの権限を確認してください"
+                });
             }
         }
 
@@ -563,8 +618,6 @@
             settingsCard.classList.remove("hidden");
 
             operatorCodeInput.value = localStorage.getItem(LS.operatorCode) || "";
-            apiKeyInput.value = localStorage.getItem(LS.apiKey) || "";
-            endpointInput.value = localStorage.getItem(LS.endpoint) || "";
             pendingCountEl.textContent = String(loadPending().length);
         }
 
@@ -577,17 +630,15 @@
                 statusBox.classList.remove("hidden");
                 return;
             }
-            const endpoint = (endpointInput.value || "").trim();
-            if (!endpoint.startsWith("https://")) {
-                setStatus("err", "設定エラー", { reason: "送信先URL（https://.../exec）を入力してください" });
+
+            if (!GAS_ENDPOINT) {
+                setStatus("err", "設定エラー", { reason: "GAS_ENDPOINTがコードに設定されていません" });
                 settingsCard.insertAdjacentElement("beforeend", statusBox);
                 statusBox.classList.remove("hidden");
                 return;
             }
 
             localStorage.setItem(LS.operatorCode, op.value);
-            localStorage.setItem(LS.apiKey, (apiKeyInput.value || "").trim());
-            localStorage.setItem(LS.endpoint, endpoint);
 
             // move statusBox back (if it was attached)
             statusBox.classList.add("hidden");
@@ -599,8 +650,6 @@
 
         clearSettingsBtn.addEventListener("click", async () => {
             localStorage.removeItem(LS.operatorCode);
-            localStorage.removeItem(LS.apiKey);
-            localStorage.removeItem(LS.endpoint);
             showSettings();
             await stopScanner();
         });
@@ -611,10 +660,10 @@
         });
 
         retryPendingBtn.addEventListener("click", async () => {
-            const endpoint = localStorage.getItem(LS.endpoint) || "";
-            const apiKey = localStorage.getItem(LS.apiKey) || "";
+            const endpoint = GAS_ENDPOINT;
+            const apiKey = API_KEY;
             if (!endpoint) {
-                setStatus("err", "設定エラー", { reason: "送信先URLが未設定です" });
+                setStatus("err", "設定エラー", { reason: "GAS_ENDPOINTが設定されていません" });
                 clearStatusSoon(1200);
                 return;
             }
@@ -638,10 +687,9 @@
             // ensure device id
             getOrCreateDeviceId();
 
-            // show settings if missing
+            // show settings if missing operator code or endpoint
             const op = localStorage.getItem(LS.operatorCode);
-            const ep = localStorage.getItem(LS.endpoint);
-            if (!op || !ep) {
+            if (!op || !GAS_ENDPOINT) {
                 showSettings();
             } else {
                 // start scanner immediately

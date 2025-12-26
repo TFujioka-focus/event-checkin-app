@@ -263,8 +263,9 @@
         function log(msg) {
             const ts = new Date().toISOString();
             debugLog.innerText = `[${ts}] ${msg}\n` + debugLog.innerText;
-            // デバッグカードを表示（必要に応じてコメントアウト）
-            // debugCard.classList.remove("hidden");
+            // デバッグカードを表示（iOSデバッグ用）
+            debugCard.classList.remove("hidden");
+            console.log(`[${ts}] ${msg}`);
         }
 
         function vibrate(ms = 40) {
@@ -531,40 +532,72 @@
 
             if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
 
+            // iOS対応: より柔軟な設定
             const config = {
                 fps: 10,
-                qrbox: { width: 250, height: 250 },
-                rememberLastUsedCamera: true,
+                qrbox: function (viewfinderWidth, viewfinderHeight) {
+                    // iOS対応: 画面サイズに応じて調整
+                    const minEdgePercentage = 0.7;
+                    const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
+                    const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
+                    return {
+                        width: qrboxSize,
+                        height: qrboxSize
+                    };
+                },
                 aspectRatio: 1.0,
-                // Formats: leave default
+                disableFlip: false,
+                videoConstraints: {
+                    facingMode: "environment"
+                }
             };
 
             scanning = true;
+            log("カメラ起動を開始...");
+
             try {
+                // iOSではカメラリストの取得が失敗することがあるため、直接環境カメラを試す
                 let cameras = [];
+                let useDirectStart = false;
+
                 try {
+                    log("カメラリストを取得中...");
                     cameras = await Html5Qrcode.getCameras();
+                    log(`カメラリスト取得成功: ${cameras.length}台`);
                 } catch (e) {
-                    log("カメラ取得エラー: " + e.message);
-                    // カメラ取得に失敗した場合、環境カメラを直接指定して試す
+                    log("カメラリスト取得エラー: " + e.message);
+                    log("環境カメラで直接起動を試行します");
+                    useDirectStart = true;
+                }
+
+                if (useDirectStart || !cameras || cameras.length === 0) {
+                    // iOS対応: カメラリストが取得できない場合、直接環境カメラを指定
                     try {
-                        log("環境カメラで直接試行");
+                        log("環境カメラで直接起動を試行中...");
                         await html5QrCode.start(
                             { facingMode: "environment" },
                             config,
                             async (decodedText) => {
                                 if (!scanning) return;
+                                log("QRコード検出: " + decodedText.substring(0, 50));
                                 await handleQrScan(decodedText, operator_code, endpoint, apiKey, device_id);
                             },
-                            (err) => { }
+                            (err) => {
+                                // スキャン中のエラーは無視（継続的にスキャンするため）
+                                // log("Scan error: " + err);
+                            }
                         );
-                        log("カメラ起動成功（環境カメラ）");
+                        log("カメラ起動成功（環境カメラ直接指定）");
                         startCameraBtn.style.display = "none";
+                        setStatus("ok", "カメラ起動成功", { note: "QRコードをスキャンしてください" });
+                        clearStatusSoon(2000);
                         return;
                     } catch (e2) {
+                        log("環境カメラ直接起動失敗: " + e2.message);
+                        log("エラー詳細: " + JSON.stringify(e2));
                         setStatus("err", "カメラ起動失敗", {
-                            error: e2.message,
-                            hint: "ブラウザのカメラ許可を確認してください"
+                            error: e2.message || String(e2),
+                            hint: "ブラウザのカメラ許可を確認してください。iOSではSafariを使用してください。"
                         });
                         scanning = false;
                         startCameraBtn.disabled = false;
@@ -576,12 +609,6 @@
                     }
                 }
 
-                if (!cameras || cameras.length === 0) {
-                    setStatus("err", "カメラが見つかりません", { hint: "ブラウザのカメラ許可を確認してください" });
-                    scanning = false;
-                    return;
-                }
-
                 log(`利用可能なカメラ数: ${cameras.length}`);
 
                 // 背面カメラを優先的に選択（環境カメラを探す）
@@ -589,7 +616,7 @@
                 for (let i = cameras.length - 1; i >= 0; i--) {
                     const cam = cameras[i];
                     const label = (cam.label || "").toLowerCase();
-                    log(`カメラ ${i}: ${label}`);
+                    log(`カメラ ${i}: ${label || cam.id}`);
                     if (label.includes("back") || label.includes("rear") || label.includes("環境") || label.includes("environment")) {
                         camId = cam.id;
                         log(`背面カメラを選択: ${camId}`);
@@ -602,26 +629,56 @@
                     log(`最後のカメラを選択: ${camId}`);
                 }
 
-                await html5QrCode.start(
-                    camId,
-                    config,
-                    async (decodedText) => {
-                        if (!scanning) return;
-                        await handleQrScan(decodedText, operator_code, endpoint, apiKey, device_id);
-                    },
-                    (err) => {
-                        // スキャンエラーは無視（継続的にスキャンするため）
-                        // log("Scan error: " + err);
+                log(`カメラID ${camId} で起動を試行中...`);
+                try {
+                    await html5QrCode.start(
+                        camId,
+                        config,
+                        async (decodedText) => {
+                            if (!scanning) return;
+                            log("QRコード検出: " + decodedText.substring(0, 50));
+                            await handleQrScan(decodedText, operator_code, endpoint, apiKey, device_id);
+                        },
+                        (err) => {
+                            // スキャン中のエラーは無視（継続的にスキャンするため）
+                            // log("Scan error: " + err);
+                        }
+                    );
+                    log("カメラ起動成功（カメラID指定）");
+                    startCameraBtn.style.display = "none";
+                    setStatus("ok", "カメラ起動成功", { note: "QRコードをスキャンしてください" });
+                    clearStatusSoon(2000);
+                } catch (startError) {
+                    log("カメラID指定での起動失敗: " + startError.message);
+                    // カメラID指定が失敗した場合、環境カメラで再試行
+                    log("環境カメラで再試行中...");
+                    try {
+                        await html5QrCode.start(
+                            { facingMode: "environment" },
+                            config,
+                            async (decodedText) => {
+                                if (!scanning) return;
+                                log("QRコード検出: " + decodedText.substring(0, 50));
+                                await handleQrScan(decodedText, operator_code, endpoint, apiKey, device_id);
+                            },
+                            (err) => { }
+                        );
+                        log("カメラ起動成功（環境カメラ再試行）");
+                        startCameraBtn.style.display = "none";
+                        setStatus("ok", "カメラ起動成功", { note: "QRコードをスキャンしてください" });
+                        clearStatusSoon(2000);
+                    } catch (retryError) {
+                        throw retryError;
                     }
-                );
-                log("カメラ起動成功");
-                startCameraBtn.style.display = "none";
+                }
             } catch (e) {
                 scanning = false;
-                log("スキャン開始失敗: " + e.message);
-                setStatus("err", "スキャン開始失敗", {
-                    error: e.message,
-                    hint: "カメラの権限を確認してください"
+                const errorMsg = e.message || String(e);
+                log("スキャン開始失敗: " + errorMsg);
+                log("エラー詳細: " + JSON.stringify(e));
+                setStatus("err", "カメラ起動失敗", {
+                    error: errorMsg,
+                    hint: "iOSではSafariブラウザを使用してください。カメラの権限を確認してください。"
                 });
                 startCameraBtn.disabled = false;
                 startCameraBtn.textContent = "カメラ起動";

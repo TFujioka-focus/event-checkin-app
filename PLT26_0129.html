@@ -187,15 +187,26 @@
                 <button class="btn2" id="openSettingsBtn" style="width:auto; padding:10px 12px;">設定</button>
             </div>
 
-            <div id="reader" style="width:100%;"></div>
+            <div id="reader"
+                style="width:100%; min-height:300px; background:#f3f4f6; border-radius:12px; display:flex; align-items:center; justify-content:center; margin-bottom:12px;">
+                <div id="cameraPlaceholder" style="text-align:center; color:#6b7280;">
+                    <div style="font-size:48px; margin-bottom:8px;">📷</div>
+                    <div>カメラを起動してください</div>
+                </div>
+            </div>
 
             <div id="statusBox" class="status hidden"></div>
             <div class="meta" id="metaBox"></div>
 
             <div style="height:10px"></div>
             <div class="row">
+                <button class="btn" id="startCameraBtn">カメラ起動</button>
                 <button class="btn2" id="retryPendingBtn">未送信を再送</button>
+            </div>
+            <div style="height:6px"></div>
+            <div class="row">
                 <button class="btn2" id="stopBtn">停止</button>
+                <button class="btn2" id="openSettingsBtn2" style="width:auto; padding:10px 12px;">設定</button>
             </div>
         </div>
 
@@ -240,8 +251,11 @@
         const saveSettingsBtn = document.getElementById("saveSettingsBtn");
         const clearSettingsBtn = document.getElementById("clearSettingsBtn");
         const openSettingsBtn = document.getElementById("openSettingsBtn");
+        const openSettingsBtn2 = document.getElementById("openSettingsBtn2");
         const retryPendingBtn = document.getElementById("retryPendingBtn");
         const stopBtn = document.getElementById("stopBtn");
+        const startCameraBtn = document.getElementById("startCameraBtn");
+        const cameraPlaceholder = document.getElementById("cameraPlaceholder");
 
         // -----------------------------
         // Helpers
@@ -488,11 +502,17 @@
             }
         }
 
-        async function startScanner() {
+        async function startCamera() {
             const operator_code = localStorage.getItem(LS.operatorCode) || "";
             const endpoint = GAS_ENDPOINT;
             const apiKey = API_KEY;
             const device_id = getOrCreateDeviceId();
+
+            if (!operator_code) {
+                setStatus("err", "設定エラー", { reason: "オペレータコードが設定されていません" });
+                showSettings();
+                return;
+            }
 
             if (!endpoint) {
                 setStatus("err", "設定エラー", { reason: "GAS_ENDPOINTが設定されていません" });
@@ -500,16 +520,14 @@
                 return;
             }
 
-            operatorLabel.textContent = operator_code;
+            // カメラ起動ボタンを無効化
+            startCameraBtn.disabled = true;
+            startCameraBtn.textContent = "カメラ起動中...";
 
-            // UI
-            settingsCard.classList.add("hidden");
-            scanCard.classList.remove("hidden");
-
-            pendingCountEl.textContent = String(loadPending().length);
-
-            // Retry pending in background on start (best effort)
-            flushPending(endpoint, apiKey).catch(() => { });
+            // プレースホルダーを非表示
+            if (cameraPlaceholder) {
+                cameraPlaceholder.style.display = "none";
+            }
 
             if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
 
@@ -541,6 +559,7 @@
                             (err) => { }
                         );
                         log("カメラ起動成功（環境カメラ）");
+                        startCameraBtn.style.display = "none";
                         return;
                     } catch (e2) {
                         setStatus("err", "カメラ起動失敗", {
@@ -548,6 +567,11 @@
                             hint: "ブラウザのカメラ許可を確認してください"
                         });
                         scanning = false;
+                        startCameraBtn.disabled = false;
+                        startCameraBtn.textContent = "カメラ起動";
+                        if (cameraPlaceholder) {
+                            cameraPlaceholder.style.display = "block";
+                        }
                         return;
                     }
                 }
@@ -591,6 +615,7 @@
                     }
                 );
                 log("カメラ起動成功");
+                startCameraBtn.style.display = "none";
             } catch (e) {
                 scanning = false;
                 log("スキャン開始失敗: " + e.message);
@@ -598,6 +623,45 @@
                     error: e.message,
                     hint: "カメラの権限を確認してください"
                 });
+                startCameraBtn.disabled = false;
+                startCameraBtn.textContent = "カメラ起動";
+                if (cameraPlaceholder) {
+                    cameraPlaceholder.style.display = "block";
+                }
+            }
+        }
+
+        async function startScanner() {
+            const operator_code = localStorage.getItem(LS.operatorCode) || "";
+            const endpoint = GAS_ENDPOINT;
+            const apiKey = API_KEY;
+            const device_id = getOrCreateDeviceId();
+
+            if (!endpoint) {
+                setStatus("err", "設定エラー", { reason: "GAS_ENDPOINTが設定されていません" });
+                showSettings();
+                return;
+            }
+
+            operatorLabel.textContent = operator_code;
+
+            // UI
+            settingsCard.classList.add("hidden");
+            scanCard.classList.remove("hidden");
+
+            pendingCountEl.textContent = String(loadPending().length);
+
+            // Retry pending in background on start (best effort)
+            flushPending(endpoint, apiKey).catch(() => { });
+
+            // カメラ起動ボタンを表示
+            if (startCameraBtn) {
+                startCameraBtn.style.display = "block";
+                startCameraBtn.disabled = false;
+                startCameraBtn.textContent = "カメラ起動";
+            }
+            if (cameraPlaceholder) {
+                cameraPlaceholder.style.display = "block";
             }
         }
 
@@ -608,6 +672,15 @@
                     await html5QrCode.stop();
                 }
             } catch { }
+            // カメラ停止時にボタンを表示
+            if (startCameraBtn) {
+                startCameraBtn.style.display = "block";
+                startCameraBtn.disabled = false;
+                startCameraBtn.textContent = "カメラ起動";
+            }
+            if (cameraPlaceholder) {
+                cameraPlaceholder.style.display = "block";
+            }
         }
 
         // -----------------------------
@@ -658,6 +731,19 @@
             showSettings();
             await stopScanner();
         });
+
+        if (openSettingsBtn2) {
+            openSettingsBtn2.addEventListener("click", async () => {
+                showSettings();
+                await stopScanner();
+            });
+        }
+
+        if (startCameraBtn) {
+            startCameraBtn.addEventListener("click", async () => {
+                await startCamera();
+            });
+        }
 
         retryPendingBtn.addEventListener("click", async () => {
             const endpoint = GAS_ENDPOINT;

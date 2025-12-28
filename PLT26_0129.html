@@ -199,26 +199,44 @@
                 user_id
             };
 
-            const res = await fetch(GAS_ENDPOINT, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
+            console.log("送信データ:", payload);
+            console.log("送信先:", GAS_ENDPOINT);
 
-            if (!res.ok) {
-                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-            }
-
-            const text = await res.text();
             try {
-                return JSON.parse(text);
-            } catch {
-                return {
-                    success: false,
-                    status: "ERROR",
-                    message: "Invalid JSON response",
-                    raw: text
-                };
+                const res = await fetch(GAS_ENDPOINT, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                console.log("レスポンスステータス:", res.status, res.statusText);
+
+                const text = await res.text();
+                console.log("レスポンス本文:", text);
+
+                // GAS Webアプリは常に200を返すことがあるので、ステータスコードだけで判断しない
+                try {
+                    const data = JSON.parse(text);
+                    console.log("パース済みデータ:", data);
+                    return data;
+                } catch (parseError) {
+                    console.error("JSONパースエラー:", parseError);
+                    // テキストレスポンスの場合も処理
+                    return {
+                        success: false,
+                        status: "ERROR",
+                        message: "Invalid JSON response",
+                        raw: text,
+                        httpStatus: res.status
+                    };
+                }
+            } catch (fetchError) {
+                console.error("Fetchエラー:", fetchError);
+                // ネットワークエラーやCORSエラーなど
+                if (fetchError.name === "TypeError" && fetchError.message.includes("fetch")) {
+                    throw new Error("ネットワークエラー: GAS Webアプリに接続できません。URLを確認してください。");
+                }
+                throw fetchError;
             }
         }
 
@@ -270,7 +288,20 @@
                     setStatus("err", "エラー", errorMsg.toString().slice(0, 120));
                 }
             } catch (e) {
-                setStatus("err", "通信エラー", e.message || "ネットワークエラーが発生しました");
+                console.error("エラー詳細:", e);
+                const errorMsg = e.message || String(e);
+                let hint = "";
+
+                if (errorMsg.includes("CORS") || errorMsg.includes("cors")) {
+                    hint = "CORSエラー: GAS Webアプリの設定を確認してください";
+                } else if (errorMsg.includes("ネットワーク")) {
+                    hint = "ネットワーク接続を確認してください";
+                } else if (errorMsg.includes("fetch")) {
+                    hint = "GAS WebアプリのURLを確認してください";
+                }
+
+                setStatus("err", "通信エラー", errorMsg + (hint ? `<br/><small>${hint}</small>` : ""));
+                hint.textContent = "ブラウザのコンソール（F12）で詳細を確認できます";
             } finally {
                 $("submitBtn").disabled = false;
                 $("submitBtn").textContent = "チェックイン";

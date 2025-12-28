@@ -3,8 +3,8 @@
 
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Event Check-in</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>チェックイン</title>
     <style>
         :root {
             --pad: 14px;
@@ -12,13 +12,14 @@
         }
 
         body {
-            font-family: system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
             margin: 0;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
             background: #f6f7f9;
+            color: #111827;
         }
 
         .wrap {
-            max-width: 640px;
+            max-width: 560px;
             margin: 0 auto;
             padding: var(--pad);
         }
@@ -26,75 +27,57 @@
         .card {
             background: #fff;
             border-radius: var(--radius);
-            padding: 14px;
+            padding: var(--pad);
             box-shadow: 0 2px 10px rgba(0, 0, 0, .06);
-            margin-bottom: 12px;
+            margin: 12px 0;
         }
 
         h1 {
             font-size: 18px;
-            margin: 6px 0 12px;
+            margin: 0 0 10px;
         }
 
         label {
             display: block;
             font-size: 12px;
-            color: #555;
-            margin: 8px 0 4px;
+            color: #374151;
+            margin: 10px 0 6px;
         }
 
         input,
-        select,
         button {
             width: 100%;
             font-size: 16px;
             padding: 12px;
             border-radius: 12px;
-            border: 1px solid #d6d8dd;
             box-sizing: border-box;
+        }
+
+        input {
+            border: 1px solid #d1d5db;
         }
 
         button {
             border: 0;
+            font-weight: 800;
             cursor: pointer;
-            font-weight: 700;
-        }
-
-        .btn {
             background: #111827;
             color: #fff;
         }
 
-        .btn2 {
-            background: #e5e7eb;
-            color: #111827;
-        }
-
-        .row {
-            display: flex;
-            gap: 10px;
-        }
-
-        .row>* {
-            flex: 1;
-        }
-
-        .badge {
-            display: inline-block;
+        .meta {
             font-size: 12px;
-            padding: 4px 10px;
-            border-radius: 999px;
-            background: #eef2ff;
-            color: #3730a3;
+            color: #6b7280;
+            line-height: 1.6;
+            word-break: break-all;
         }
 
         .status {
+            margin-top: 12px;
+            border-radius: 14px;
+            padding: 14px;
+            font-weight: 900;
             text-align: center;
-            padding: 18px 12px;
-            border-radius: 16px;
-            font-weight: 800;
-            font-size: 20px;
-            margin-top: 10px;
         }
 
         .ok {
@@ -112,39 +95,11 @@
             color: #991b1b;
         }
 
-        .meta {
-            font-size: 13px;
-            color: #374151;
-            line-height: 1.6;
-            word-break: break-all;
-        }
-
         .small {
             font-size: 12px;
             color: #6b7280;
-        }
-
-        .topbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .pill {
-            background: #f3f4f6;
-            padding: 6px 10px;
-            border-radius: 999px;
-            font-size: 12px;
-            color: #111827;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        .mono {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            text-align: center;
+            margin-top: 10px;
         }
     </style>
 </head>
@@ -152,674 +107,175 @@
 <body>
     <div class="wrap">
         <div class="card">
-            <div class="topbar">
-                <h1>受付アプリ</h1>
-                <div class="pill">未送信: <span id="pendingCount">0</span></div>
+            <h1>チェックイン</h1>
+            <div class="meta">
+                参加者の方がこのページで <b>ユーザーID</b> を入力してチェックインします。
             </div>
-            <div class="small">
-                ・イベントIDはQRから取得（入力不要）<br />
-                ・オペレータコードは端末ごとに1回だけ設定（例: A1 / A2 / B1）
-            </div>
-        </div>
-
-        <!-- Settings -->
-        <div class="card" id="settingsCard">
-            <div>
-                <label>オペレータコード（短く）</label>
-                <input id="operatorCode" placeholder="例：A1" inputmode="text" autocomplete="off" />
-                <div class="small">端末ごとに固定。最初に1回だけ入れればOK。</div>
-            </div>
-
-            <div style="height:10px"></div>
-            <div class="row">
-                <button class="btn" id="saveSettingsBtn">設定を保存してスキャン開始</button>
-                <button class="btn2" id="clearSettingsBtn">設定クリア</button>
+            <div class="meta" style="margin-top:10px;">
+                イベント：<b id="eventLabel">-</b>
             </div>
         </div>
 
-        <!-- Scanner -->
-        <div class="card hidden" id="scanCard">
-            <div class="topbar">
-                <div>
-                    <span class="badge">SCAN</span>
-                    <div class="small">オペレータ: <span class="mono" id="operatorLabel"></span></div>
-                </div>
-                <button class="btn2" id="openSettingsBtn" style="width:auto; padding:10px 12px;">設定</button>
-            </div>
+        <div class="card">
+            <label>ユーザーID</label>
+            <input id="userId" placeholder="例：U001" inputmode="text" autocomplete="off" />
 
-            <div id="reader"
-                style="width:100%; min-height:300px; background:#f3f4f6; border-radius:12px; display:flex; align-items:center; justify-content:center; margin-bottom:12px;">
-                <div id="cameraPlaceholder" style="text-align:center; color:#6b7280;">
-                    <div style="font-size:48px; margin-bottom:8px;">📷</div>
-                    <div>カメラを起動してください</div>
-                </div>
-            </div>
+            <div style="height:12px"></div>
+            <button id="submitBtn">チェックイン</button>
 
-            <div id="statusBox" class="status hidden"></div>
-            <div class="meta" id="metaBox"></div>
-
-            <div style="height:10px"></div>
-            <div class="row">
-                <button class="btn" id="startCameraBtn">カメラ起動</button>
-                <button class="btn2" id="retryPendingBtn">未送信を再送</button>
-            </div>
-            <div style="height:6px"></div>
-            <div class="row">
-                <button class="btn2" id="stopBtn">停止</button>
-                <button class="btn2" id="openSettingsBtn2" style="width:auto; padding:10px 12px;">設定</button>
-            </div>
+            <div id="statusBox" class="status" style="display:none;"></div>
+            <div class="small" id="hint"></div>
         </div>
 
-        <div class="card hidden" id="debugCard">
-            <div class="small">デバッグ</div>
-            <div class="mono small" id="debugLog"></div>
+        <div class="card">
+            <div class="meta">
+                ※ チェックイン済みの場合は「チェックイン済み」と表示されます。<br />
+                ※ 通信状況により時間がかかる場合があります。
+            </div>
         </div>
     </div>
 
-    <!-- QR Scanner library -->
-    <script src="https://unpkg.com/html5-qrcode@2.3.10/minified/html5-qrcode.min.js"></script>
-
     <script>
-        // -----------------------------
-        // Configuration (埋め込み設定)
-        // -----------------------------
-        const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbxgsHcf7_twzz9lHBZA35ncVLpfHAs7gVpwgE99wdly6JjvS870yO5L_5mwT3nDWP1l/exec"; // GAS WebアプリURLをここに入力してください（例: https://script.google.com/macros/s/xxxxx/exec）
-        const API_KEY = "plt2026_9fK3dA2xQmL8"; // APIキーをここに入力してください（空欄でもOK）
+        // ========= 設定 =========
+        const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbxgsHcf7_twzz9lHBZA35ncVLpfHAs7gVpwgE99wdly6JjvS870yO5L_5mwT3nDWP1l/exec";
+        const API_KEY = "plt2026_9fK3dA2xQmL8"; // GAS側と同じ。不要なら空文字でもOK
+        const EVENT_ID = "training-260129"; // イベントID
+        // =====================================
 
-        // -----------------------------
-        // Storage keys
-        // -----------------------------
-        const LS = {
-            operatorCode: "checkin_operator_code",
-            deviceId: "checkin_device_id",
-            pending: "checkin_pending_queue"
-        };
+        const $ = (id) => document.getElementById(id);
+        const statusBox = $("statusBox");
+        const hint = $("hint");
 
-        // -----------------------------
-        // UI elements
-        // -----------------------------
-        const settingsCard = document.getElementById("settingsCard");
-        const scanCard = document.getElementById("scanCard");
-        const operatorCodeInput = document.getElementById("operatorCode");
-        const operatorLabel = document.getElementById("operatorLabel");
-        const pendingCountEl = document.getElementById("pendingCount");
-        const statusBox = document.getElementById("statusBox");
-        const metaBox = document.getElementById("metaBox");
-        const debugLog = document.getElementById("debugLog");
-        const debugCard = document.getElementById("debugCard");
+        // イベントIDを表示
+        $("eventLabel").textContent = EVENT_ID;
 
-        const saveSettingsBtn = document.getElementById("saveSettingsBtn");
-        const clearSettingsBtn = document.getElementById("clearSettingsBtn");
-        const openSettingsBtn = document.getElementById("openSettingsBtn");
-        const openSettingsBtn2 = document.getElementById("openSettingsBtn2");
-        const retryPendingBtn = document.getElementById("retryPendingBtn");
-        const stopBtn = document.getElementById("stopBtn");
-        const startCameraBtn = document.getElementById("startCameraBtn");
-        const cameraPlaceholder = document.getElementById("cameraPlaceholder");
-
-        // -----------------------------
-        // Helpers
-        // -----------------------------
-        function log(msg) {
-            const ts = new Date().toISOString();
-            debugLog.innerText = `[${ts}] ${msg}\n` + debugLog.innerText;
-            // デバッグカードを表示（iOSデバッグ用）
-            debugCard.classList.remove("hidden");
-            console.log(`[${ts}] ${msg}`);
+        function setStatus(kind, msg, detail) {
+            statusBox.style.display = "block";
+            statusBox.className = "status " + kind;
+            statusBox.innerHTML = msg + (detail ? `<div style="font-weight:700; margin-top:6px; font-size:12px; opacity:.9">${detail}</div>` : "");
         }
 
-        function vibrate(ms = 40) {
-            try { if (navigator.vibrate) navigator.vibrate(ms); } catch { }
-        }
-
-        function beep() {
-            try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = "sine";
-                osc.frequency.value = 880;
-                gain.gain.value = 0.03;
-                osc.connect(gain); gain.connect(ctx.destination);
-                osc.start();
-                setTimeout(() => { osc.stop(); ctx.close(); }, 120);
-            } catch { }
-        }
-
-        function getOrCreateDeviceId() {
-            let id = localStorage.getItem(LS.deviceId);
-            if (!id) {
-                id = "dev_" + crypto.getRandomValues(new Uint32Array(4)).join("");
-                localStorage.setItem(LS.deviceId, id);
-            }
-            return id;
-        }
-
-        function loadPending() {
-            try {
-                const raw = localStorage.getItem(LS.pending);
-                return raw ? JSON.parse(raw) : [];
-            } catch {
-                return [];
-            }
-        }
-
-        function savePending(queue) {
-            localStorage.setItem(LS.pending, JSON.stringify(queue));
-            pendingCountEl.textContent = String(queue.length);
-        }
-
-        function addPending(item) {
-            const q = loadPending();
-            q.push(item);
-            savePending(q);
-        }
-
-        function shiftPending() {
-            const q = loadPending();
-            const item = q.shift();
-            savePending(q);
-            return item;
-        }
-
-        function setStatus(kind, title, detailObj) {
-            statusBox.classList.remove("hidden", "ok", "dup", "err");
-            statusBox.classList.add(kind);
-            statusBox.textContent = title;
-
-            const lines = [];
-            if (detailObj) {
-                for (const [k, v] of Object.entries(detailObj)) {
-                    if (v !== undefined && v !== null && String(v).length) {
-                        lines.push(`${k}: ${v}`);
-                    }
-                }
-            }
-            metaBox.innerHTML = lines.length ? `<div class="meta">${lines.join("<br/>")}</div>` : "";
-        }
-
-        function clearStatusSoon(ms = 900) {
+        function clearStatusSoon(ms = 1800) {
             setTimeout(() => {
-                statusBox.classList.add("hidden");
-                metaBox.innerHTML = "";
+                statusBox.style.display = "none";
+                hint.textContent = "";
             }, ms);
         }
 
-        // Parse QR payload: expects querystring-like.
-        // Supports:
-        //  - "event=XXX&pid=U001&cat=参加者&team=A&mentor=佐藤"
-        //  - full URL containing ?event=...&pid=...
-        function parseQr(text) {
-            let q = text;
+        // 「チェックイン」音（簡易チャイム）
+        function playCheckinSound() {
             try {
-                if (text.includes("?")) q = text.split("?")[1];
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const now = ctx.currentTime;
+
+                const o1 = ctx.createOscillator();
+                const g1 = ctx.createGain();
+                o1.type = "sine";
+                o1.frequency.setValueAtTime(880, now);
+                g1.gain.setValueAtTime(0.0001, now);
+                g1.gain.exponentialRampToValueAtTime(0.06, now + 0.01);
+                g1.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+                o1.connect(g1); g1.connect(ctx.destination);
+                o1.start(now); o1.stop(now + 0.2);
+
+                const o2 = ctx.createOscillator();
+                const g2 = ctx.createGain();
+                o2.type = "sine";
+                o2.frequency.setValueAtTime(1320, now + 0.08);
+                g2.gain.setValueAtTime(0.0001, now + 0.08);
+                g2.gain.exponentialRampToValueAtTime(0.05, now + 0.10);
+                g2.gain.exponentialRampToValueAtTime(0.0001, now + 0.26);
+                o2.connect(g2); g2.connect(ctx.destination);
+                o2.start(now + 0.08); o2.stop(now + 0.28);
+
+                setTimeout(() => ctx.close(), 400);
             } catch { }
-            q = q.replace(/^#/, "");
-            const params = new URLSearchParams(q);
-            const event_id = params.get("event") || params.get("event_id") || "";
-            const participant_id = params.get("pid") || params.get("participant_id") || "";
-            const category = params.get("cat") || params.get("category") || "";
-            const team = params.get("team") || "";
-            const mentor = params.get("mentor") || "";
-            return { event_id, participant_id, category, team, mentor, raw: text };
         }
 
-        function validateOperatorCode(code) {
-            // ultra-simple: 1-6 chars, alnum only recommended
-            const c = (code || "").trim();
-            if (!c) return { ok: false, reason: "オペレータコードを入力してください（例：A1）" };
-            if (c.length > 8) return { ok: false, reason: "オペレータコードが長すぎます（8文字以内）" };
-            return { ok: true, value: c };
-        }
+        async function postCheckin(event_id, user_id) {
+            const payload = {
+                apiKey: API_KEY,
+                event_id,
+                user_id
+            };
 
-        // -----------------------------
-        // Networking
-        // -----------------------------
-        async function postCheckin(payload, endpoint, apiKey) {
-            const headers = { "Content-Type": "application/json" };
-            if (apiKey && apiKey.trim()) headers["X-API-KEY"] = apiKey.trim();
-
-            const res = await fetch(endpoint, {
+            const res = await fetch(GAS_ENDPOINT, {
                 method: "POST",
-                headers,
-                body: JSON.stringify(payload),
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
             });
-
-            const contentType = res.headers.get("content-type") || "";
-            let data = null;
-            if (contentType.includes("application/json")) {
-                data = await res.json();
-            } else {
-                const t = await res.text();
-                try { data = JSON.parse(t); } catch { data = { raw: t }; }
-            }
 
             if (!res.ok) {
-                const errMsg = (data && (data.error || data.message)) ? (data.error || data.message) : `HTTP ${res.status}`;
-                throw new Error(errMsg);
+                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
             }
-            return data;
+
+            const text = await res.text();
+            try {
+                return JSON.parse(text);
+            } catch {
+                return {
+                    success: false,
+                    status: "ERROR",
+                    message: "Invalid JSON response",
+                    raw: text
+                };
+            }
         }
 
-        async function flushPending(endpoint, apiKey) {
-            const q = loadPending();
-            if (!q.length) return { sent: 0 };
-
-            let sent = 0;
-            // try sequentially to avoid bursts
-            for (let i = 0; i < 50; i++) {
-                const item = loadPending()[0];
-                if (!item) break;
-                try {
-                    await postCheckin(item, endpoint, apiKey);
-                    shiftPending();
-                    sent++;
-                } catch (e) {
-                    // stop at first failure
-                    log("pending flush failed: " + e.message);
-                    break;
-                }
+        // Enterキーで送信
+        $("userId").addEventListener("keypress", (e) => {
+            if (e.key === "Enter" && !$("submitBtn").disabled) {
+                $("submitBtn").click();
             }
-            return { sent };
-        }
+        });
 
-        // -----------------------------
-        // Scanner
-        // -----------------------------
-        let html5QrCode = null;
-        let scanning = false;
-        let lastScan = { key: "", at: 0 };
+        $("submitBtn").addEventListener("click", async () => {
+            const userId = $("userId").value.trim();
 
-        async function handleQrScan(decodedText, operator_code, endpoint, apiKey, device_id) {
-            // Debounce duplicates (same raw within 2 sec)
-            const now = Date.now();
-            const parsed = parseQr(decodedText);
-            const key = `${parsed.event_id}|${parsed.participant_id}|${parsed.raw}`;
-            if (key === lastScan.key && (now - lastScan.at) < 2000) return;
-            lastScan = { key, at: now };
-
-            // Basic validation
-            if (!parsed.event_id || !parsed.participant_id) {
-                vibrate(120);
-                setStatus("err", "QR形式エラー", {
-                    required: "event と pid が必要",
-                    raw: decodedText.slice(0, 120) + (decodedText.length > 120 ? "..." : "")
-                });
-                clearStatusSoon(1200);
+            if (!userId) {
+                setStatus("err", "ユーザーIDを入力してください");
                 return;
             }
 
-            // Pause scanning during submit to reduce double fires
-            scanning = false;
-
-            const payload = {
-                timestamp_client: new Date().toISOString(),
-                event_id: parsed.event_id,
-                participant_id: parsed.participant_id,
-                category: parsed.category || "",
-                team: parsed.team || "",
-                mentor: parsed.mentor || "",
-                operator_code,
-                device_id,
-            };
+            $("submitBtn").disabled = true;
+            $("submitBtn").textContent = "送信中...";
+            hint.textContent = "";
 
             try {
-                const data = await postCheckin(payload, endpoint, apiKey);
+                const data = await postCheckin(EVENT_ID, userId);
+                const st = String(data.status || data.result || "").toUpperCase();
 
-                // Expected response shape:
-                // { status: "OK"|"DUPLICATE", message?: "...", ... }
-                const st = (data && (data.status || data.result)) ? (data.status || data.result) : "OK";
-
-                if (String(st).toUpperCase() === "DUPLICATE") {
-                    vibrate(90);
-                    setStatus("dup", "受付済み", {
-                        event: parsed.event_id,
-                        pid: parsed.participant_id,
-                        note: data.message || ""
-                    });
-                } else {
-                    beep(); vibrate(40);
-                    setStatus("ok", "受付完了", {
-                        event: parsed.event_id,
-                        pid: parsed.participant_id,
-                        cat: parsed.category || "",
-                        team: parsed.team || "",
-                        mentor: parsed.mentor || ""
-                    });
+                // チェックイン成功
+                if (data.success !== false && (st === "OK" || st === "SUCCESS")) {
+                    playCheckinSound();
+                    setStatus("ok", "チェックイン完了", `ユーザーID：${userId}`);
+                    $("userId").value = "";
+                    clearStatusSoon(3000);
+                }
+                // チェックイン済み
+                else if (st === "DUPLICATE" || st === "ALREADY_CHECKED_IN") {
+                    setStatus("dup", "チェックイン済みです", `ユーザーID：${userId}`);
+                }
+                // ユーザーIDが見つからない
+                else if (st === "NOT_FOUND" || st === "USER_NOT_FOUND") {
+                    setStatus("err", "ユーザーIDが見つかりません", `ユーザーID：${userId} が登録されていません`);
+                }
+                // 認証エラー
+                else if (st === "UNAUTHORIZED" || st === "AUTH_ERROR") {
+                    setStatus("err", "認証エラー", "APIキーを確認してください");
+                }
+                // その他のエラー
+                else {
+                    const errorMsg = data.message || data.error || data.raw || "不明なエラー";
+                    setStatus("err", "エラー", errorMsg.toString().slice(0, 120));
                 }
             } catch (e) {
-                // Queue if network error
-                addPending(payload);
-                vibrate(140);
-                setStatus("err", "通信エラー（未送信に保存）", {
-                    event: parsed.event_id,
-                    pid: parsed.participant_id,
-                    error: e.message
-                });
+                setStatus("err", "通信エラー", e.message || "ネットワークエラーが発生しました");
             } finally {
-                // Resume scanning after short delay
-                clearStatusSoon(900);
-                setTimeout(() => { scanning = true; }, 650);
+                $("submitBtn").disabled = false;
+                $("submitBtn").textContent = "チェックイン";
             }
-        }
-
-        async function startCamera() {
-            const operator_code = localStorage.getItem(LS.operatorCode) || "";
-            const endpoint = GAS_ENDPOINT;
-            const apiKey = API_KEY;
-            const device_id = getOrCreateDeviceId();
-
-            if (!operator_code) {
-                setStatus("err", "設定エラー", { reason: "オペレータコードが設定されていません" });
-                showSettings();
-                return;
-            }
-
-            if (!endpoint) {
-                setStatus("err", "設定エラー", { reason: "GAS_ENDPOINTが設定されていません" });
-                showSettings();
-                return;
-            }
-
-            // カメラ起動ボタンを無効化
-            startCameraBtn.disabled = true;
-            startCameraBtn.textContent = "カメラ起動中...";
-
-            // プレースホルダーを非表示
-            if (cameraPlaceholder) {
-                cameraPlaceholder.style.display = "none";
-            }
-
-            if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
-
-            // iOS対応: シンプルな設定（videoConstraintsは使わない）
-            const config = {
-                fps: 10,
-                qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0,
-                disableFlip: false
-            };
-
-            scanning = true;
-            log("カメラ起動を開始...");
-            log("ユーザーエージェント: " + navigator.userAgent);
-
-            // タイムアウト設定（10秒）
-            const timeoutId = setTimeout(() => {
-                if (startCameraBtn.disabled) {
-                    log("カメラ起動タイムアウト");
-                    setStatus("err", "カメラ起動タイムアウト", {
-                        hint: "カメラの権限を確認してください。ページを再読み込みして再試行してください。"
-                    });
-                    scanning = false;
-                    startCameraBtn.disabled = false;
-                    startCameraBtn.textContent = "カメラ起動";
-                    if (cameraPlaceholder) {
-                        cameraPlaceholder.style.display = "block";
-                    }
-                }
-            }, 10000);
-
-            try {
-                // iOS対応: まず環境カメラを直接試す（最も確実な方法）
-                log("環境カメラで直接起動を試行中...");
-                try {
-                    await html5QrCode.start(
-                        { facingMode: "environment" },
-                        config,
-                        async (decodedText) => {
-                            if (!scanning) return;
-                            log("QRコード検出: " + decodedText.substring(0, 50));
-                            await handleQrScan(decodedText, operator_code, endpoint, apiKey, device_id);
-                        },
-                        (err) => {
-                            // スキャン中のエラーは無視（継続的にスキャンするため）
-                        }
-                    );
-                    clearTimeout(timeoutId);
-                    log("カメラ起動成功（環境カメラ直接指定）");
-                    startCameraBtn.style.display = "none";
-                    setStatus("ok", "カメラ起動成功", { note: "QRコードをスキャンしてください" });
-                    clearStatusSoon(2000);
-                    return;
-                } catch (e2) {
-                    log("環境カメラ直接起動失敗: " + e2.message);
-                    log("エラー詳細: " + JSON.stringify(e2));
-                    // カメラリストから試す
-                }
-
-                // カメラリストから選択を試す
-                let cameras = [];
-                try {
-                    log("カメラリストを取得中...");
-                    cameras = await Html5Qrcode.getCameras();
-                    log(`カメラリスト取得成功: ${cameras.length}台`);
-                } catch (e) {
-                    log("カメラリスト取得エラー: " + e.message);
-                    throw new Error("カメラリストの取得に失敗しました: " + e.message);
-                }
-
-                if (!cameras || cameras.length === 0) {
-                    throw new Error("利用可能なカメラが見つかりません");
-                }
-
-                log(`利用可能なカメラ数: ${cameras.length}`);
-
-                // 背面カメラを優先的に選択（環境カメラを探す）
-                let camId = null;
-                for (let i = cameras.length - 1; i >= 0; i--) {
-                    const cam = cameras[i];
-                    const label = (cam.label || "").toLowerCase();
-                    log(`カメラ ${i}: ${label || cam.id}`);
-                    if (label.includes("back") || label.includes("rear") || label.includes("環境") || label.includes("environment")) {
-                        camId = cam.id;
-                        log(`背面カメラを選択: ${camId}`);
-                        break;
-                    }
-                }
-                // 背面カメラが見つからない場合は最後のカメラを使用
-                if (!camId) {
-                    camId = cameras[cameras.length - 1].id;
-                    log(`最後のカメラを選択: ${camId}`);
-                }
-
-                log(`カメラID ${camId} で起動を試行中...`);
-                await html5QrCode.start(
-                    camId,
-                    config,
-                    async (decodedText) => {
-                        if (!scanning) return;
-                        log("QRコード検出: " + decodedText.substring(0, 50));
-                        await handleQrScan(decodedText, operator_code, endpoint, apiKey, device_id);
-                    },
-                    (err) => {
-                        // スキャン中のエラーは無視（継続的にスキャンするため）
-                    }
-                );
-                clearTimeout(timeoutId);
-                log("カメラ起動成功（カメラID指定）");
-                startCameraBtn.style.display = "none";
-                setStatus("ok", "カメラ起動成功", { note: "QRコードをスキャンしてください" });
-                clearStatusSoon(2000);
-            } catch (e) {
-                clearTimeout(timeoutId);
-                scanning = false;
-                const errorMsg = e.message || String(e);
-                log("スキャン開始失敗: " + errorMsg);
-                log("エラー詳細: " + JSON.stringify(e));
-                log("エラースタック: " + (e.stack || "なし"));
-
-                // iOS特有のエラーメッセージ
-                let hint = "カメラの権限を確認してください。";
-                if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
-                    hint += " iOSではSafariブラウザを使用してください。HTTPS接続が必要です。";
-                }
-
-                setStatus("err", "カメラ起動失敗", {
-                    error: errorMsg,
-                    hint: hint
-                });
-                startCameraBtn.disabled = false;
-                startCameraBtn.textContent = "カメラ起動";
-                if (cameraPlaceholder) {
-                    cameraPlaceholder.style.display = "block";
-                }
-            }
-        }
-
-        async function startScanner() {
-            const operator_code = localStorage.getItem(LS.operatorCode) || "";
-            const endpoint = GAS_ENDPOINT;
-            const apiKey = API_KEY;
-            const device_id = getOrCreateDeviceId();
-
-            if (!endpoint) {
-                setStatus("err", "設定エラー", { reason: "GAS_ENDPOINTが設定されていません" });
-                showSettings();
-                return;
-            }
-
-            operatorLabel.textContent = operator_code;
-
-            // UI
-            settingsCard.classList.add("hidden");
-            scanCard.classList.remove("hidden");
-
-            pendingCountEl.textContent = String(loadPending().length);
-
-            // Retry pending in background on start (best effort)
-            flushPending(endpoint, apiKey).catch(() => { });
-
-            // カメラ起動ボタンを表示
-            if (startCameraBtn) {
-                startCameraBtn.style.display = "block";
-                startCameraBtn.disabled = false;
-                startCameraBtn.textContent = "カメラ起動";
-            }
-            if (cameraPlaceholder) {
-                cameraPlaceholder.style.display = "block";
-            }
-        }
-
-        async function stopScanner() {
-            scanning = false;
-            try {
-                if (html5QrCode && html5QrCode.isScanning) {
-                    await html5QrCode.stop();
-                }
-            } catch { }
-            // カメラ停止時にボタンを表示
-            if (startCameraBtn) {
-                startCameraBtn.style.display = "block";
-                startCameraBtn.disabled = false;
-                startCameraBtn.textContent = "カメラ起動";
-            }
-            if (cameraPlaceholder) {
-                cameraPlaceholder.style.display = "block";
-            }
-        }
-
-        // -----------------------------
-        // Settings + Boot
-        // -----------------------------
-        function showSettings() {
-            scanCard.classList.add("hidden");
-            settingsCard.classList.remove("hidden");
-
-            operatorCodeInput.value = localStorage.getItem(LS.operatorCode) || "";
-            pendingCountEl.textContent = String(loadPending().length);
-        }
-
-        saveSettingsBtn.addEventListener("click", async () => {
-            const op = validateOperatorCode(operatorCodeInput.value);
-            if (!op.ok) {
-                setStatus("err", "設定エラー", { reason: op.reason });
-                // show in settings card by temporarily placing status
-                settingsCard.insertAdjacentElement("beforeend", statusBox);
-                statusBox.classList.remove("hidden");
-                return;
-            }
-
-            if (!GAS_ENDPOINT) {
-                setStatus("err", "設定エラー", { reason: "GAS_ENDPOINTがコードに設定されていません" });
-                settingsCard.insertAdjacentElement("beforeend", statusBox);
-                statusBox.classList.remove("hidden");
-                return;
-            }
-
-            localStorage.setItem(LS.operatorCode, op.value);
-
-            // move statusBox back (if it was attached)
-            statusBox.classList.add("hidden");
-            document.body.appendChild(statusBox);
-
-            await stopScanner();
-            await startScanner();
         });
-
-        clearSettingsBtn.addEventListener("click", async () => {
-            localStorage.removeItem(LS.operatorCode);
-            showSettings();
-            await stopScanner();
-        });
-
-        openSettingsBtn.addEventListener("click", async () => {
-            showSettings();
-            await stopScanner();
-        });
-
-        if (openSettingsBtn2) {
-            openSettingsBtn2.addEventListener("click", async () => {
-                showSettings();
-                await stopScanner();
-            });
-        }
-
-        if (startCameraBtn) {
-            startCameraBtn.addEventListener("click", async () => {
-                await startCamera();
-            });
-        }
-
-        retryPendingBtn.addEventListener("click", async () => {
-            const endpoint = GAS_ENDPOINT;
-            const apiKey = API_KEY;
-            if (!endpoint) {
-                setStatus("err", "設定エラー", { reason: "GAS_ENDPOINTが設定されていません" });
-                clearStatusSoon(1200);
-                return;
-            }
-            const r = await flushPending(endpoint, apiKey);
-            if (r.sent > 0) {
-                beep(); vibrate(40);
-                setStatus("ok", "再送完了", { sent: r.sent });
-            } else {
-                setStatus("dup", "再送なし", { note: "未送信がないか、通信エラーです" });
-            }
-            clearStatusSoon(1000);
-        });
-
-        stopBtn.addEventListener("click", async () => {
-            await stopScanner();
-            setStatus("dup", "停止しました", { note: "再開するには設定→保存" });
-        });
-
-        // Boot
-        (function init() {
-            // ensure device id
-            getOrCreateDeviceId();
-
-            // show settings if missing operator code or endpoint
-            const op = localStorage.getItem(LS.operatorCode);
-            if (!op || !GAS_ENDPOINT) {
-                showSettings();
-            } else {
-                // start scanner immediately
-                startScanner();
-            }
-
-            pendingCountEl.textContent = String(loadPending().length);
-        })();
     </script>
 </body>
 

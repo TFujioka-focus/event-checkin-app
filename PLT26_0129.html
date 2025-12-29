@@ -285,8 +285,6 @@
                 if (data.success !== false && (st === "OK" || st === "SUCCESS")) {
                     playCheckinSound();
                     setStatus("ok", "チェックイン完了", `ユーザーID：${userId}`);
-                    $("userId").value = "";
-                    clearStatusSoon(3000);
                 }
                 // チェックイン済み
                 else if (st === "DUPLICATE" || st === "ALREADY_CHECKED_IN") {

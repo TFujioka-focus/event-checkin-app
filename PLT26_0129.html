@@ -194,11 +194,6 @@
 
         // JSONP方式でCORSを完全に回避
         function postCheckin(event_id, user_id) {
-            // HTML側の scriptタグ作成部分
-            const script = document.createElement('script');
-            script.src = url;
-            script.crossOrigin = "anonymous"; // これを追加（ログイン情報を無視させる）
-
             return new Promise((resolve, reject) => {
                 const payload = {
                     apiKey: API_KEY,
@@ -241,6 +236,12 @@
 
                 const url = `${GAS_ENDPOINT}?${params.toString()}`;
                 console.log("リクエストURL:", url);
+
+                // HTML側の scriptタグ作成部分
+                const script1 = document.createElement('script');
+                script.src = url;
+                script.crossOrigin = "anonymous"; // これを追加（ログイン情報を無視させる）
+
 
                 // scriptタグを作成して追加
                 const script = document.createElement('script');

@@ -215,7 +215,8 @@
 
                 const res = await fetch(url, {
                     method: "GET",
-                    mode: 'cors' // GETリクエストは通常CORS問題が少ない
+                    mode: 'cors',
+                    cache: 'no-cache' // キャッシュを無効化
                 });
 
                 console.log("レスポンスステータス:", res.status, res.statusText);

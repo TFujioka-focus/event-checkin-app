@@ -192,8 +192,6 @@
             } catch { }
         }
 
-        // JSONP方式でCORSを完全に回避
-        // JSONP方式でCORSを完全に回避
         function postCheckin(event_id, user_id) {
             return new Promise((resolve, reject) => {
                 const payload = {
@@ -203,7 +201,6 @@
                 };
 
                 console.log("送信データ:", payload);
-                console.log("送信先:", GAS_ENDPOINT);
 
                 // コールバック関数名を生成
                 const callbackName = 'gasCallback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -211,21 +208,13 @@
                 // グローバルスコープにコールバック関数を設定
                 window[callbackName] = function (data) {
                     console.log("JSONPレスポンス:", data);
-                    // コールバック関数とscriptタグを削除
                     delete window[callbackName];
-                    document.head.removeChild(script);
+                    if (scriptElement.parentNode) {
+                        document.head.removeChild(scriptElement);
+                    }
                     clearTimeout(timeoutId);
                     resolve(data);
                 };
-
-                // タイムアウト設定
-                const timeoutId = setTimeout(() => {
-                    delete window[callbackName];
-                    if (script.parentNode) {
-                        document.head.removeChild(script);
-                    }
-                    reject(new Error("リクエストがタイムアウトしました"));
-                }, 10000);
 
                 // URLパラメータを構築
                 const params = new URLSearchParams({
@@ -234,30 +223,38 @@
                     user_id: user_id,
                     callback: callbackName
                 });
-
                 const url = `${GAS_ENDPOINT}?${params.toString()}`;
-                console.log("リクエストURL:", url);
 
-                // scriptタグを作成して追加
-                const script = document.createElement('script');
-                script.src = url;
-                script.crossOrigin = "anonymous"; // これを追加（ログイン情報を無視させる）
-
-                script.onerror = function (error) {
-                    console.error("Script読み込みエラー:", error);
-                    console.error("エラーURL:", url);
+                // タイムアウト設定
+                const timeoutId = setTimeout(() => {
                     delete window[callbackName];
-                    if (script.parentNode) {
-                        document.head.removeChild(script);
+                    if (scriptElement && scriptElement.parentNode) {
+                        document.head.removeChild(scriptElement);
+                    }
+                    reject(new Error("リクエストがタイムアウトしました"));
+                }, 10000);
+
+                // --- scriptタグの作成と追加 ---
+                // 変数名を scriptElement にして競合を避けます
+                const scriptElement = document.createElement('script');
+                scriptElement.src = url;
+                scriptElement.crossOrigin = "anonymous"; // 複数アカウント対策
+
+                scriptElement.onerror = function (error) {
+                    console.error("Script読み込みエラー:", error);
+                    delete window[callbackName];
+                    if (scriptElement.parentNode) {
+                        document.head.removeChild(scriptElement);
                     }
                     clearTimeout(timeoutId);
-                    reject(new Error("ネットワークエラー: GAS Webアプリに接続できません。URLを直接開いて確認してください: " + url));
+                    reject(new Error("ネットワークエラー: GASに接続できません。"));
                 };
-                script.onload = function () {
+
+                scriptElement.onload = function () {
                     console.log("Script読み込み成功");
-                    // コールバックが10秒以内に呼ばれない場合のタイムアウトは既に設定済み
                 };
-                document.head.appendChild(script);
+
+                document.head.appendChild(scriptElement);
             });
         }
 

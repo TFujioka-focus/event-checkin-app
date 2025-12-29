@@ -203,10 +203,19 @@
             console.log("送信先:", GAS_ENDPOINT);
 
             try {
-                const res = await fetch(GAS_ENDPOINT, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload)
+                // GETリクエスト（URLパラメータ）でCORSを完全に回避
+                const params = new URLSearchParams({
+                    apiKey: API_KEY,
+                    event_id: event_id,
+                    user_id: user_id
+                });
+
+                const url = `${GAS_ENDPOINT}?${params.toString()}`;
+                console.log("リクエストURL:", url);
+
+                const res = await fetch(url, {
+                    method: "GET",
+                    mode: 'cors' // GETリクエストは通常CORS問題が少ない
                 });
 
                 console.log("レスポンスステータス:", res.status, res.statusText);
@@ -214,14 +223,12 @@
                 const text = await res.text();
                 console.log("レスポンス本文:", text);
 
-                // GAS Webアプリは常に200を返すことがあるので、ステータスコードだけで判断しない
                 try {
                     const data = JSON.parse(text);
                     console.log("パース済みデータ:", data);
                     return data;
                 } catch (parseError) {
                     console.error("JSONパースエラー:", parseError);
-                    // テキストレスポンスの場合も処理
                     return {
                         success: false,
                         status: "ERROR",
@@ -232,7 +239,6 @@
                 }
             } catch (fetchError) {
                 console.error("Fetchエラー:", fetchError);
-                // ネットワークエラーやCORSエラーなど
                 if (fetchError.name === "TypeError" && fetchError.message.includes("fetch")) {
                     throw new Error("ネットワークエラー: GAS Webアプリに接続できません。URLを確認してください。");
                 }
